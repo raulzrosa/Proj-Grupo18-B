@@ -90,23 +90,24 @@ int main(int argc, char *argv[]) {
     int l_height = in.size().height, l_width = in.size().width;
 
     //numero de blocos é o total de pixels dividido pelo total de threads
-	if(tipo_img == 0) {
-   		 numBlocks = (l_height*l_width/nthreads) + 1;
-	} else if (tipo_img == 1) {
-		numBlocks = (l_height*l_width/nthreads)*3 + 1;
-	}
+    if(tipo_img == 0) {
+  	numBlocks = (l_height*l_width/nthreads) + 1;
+    } else if (tipo_img == 1) {
+	numBlocks = (l_height*l_width/nthreads)*3 + 1;
+    }
     unsigned char *original,*saida;
 
     //poe uma borda na imagem
     copyMakeBorder(in, in, border, border, border, border, BORDER_REPLICATE);
     //alloca uma matriz que vai receber uma imagem com borda
-	if(tipo_img == 0) {
-   		 cudaMalloc(&original, (l_width + 4) * (l_height + 4));	
-   		 cudaMalloc(&saida, l_width * l_height);
-	} else if (tipo_img == 1) {
-		cudaMalloc(&original, (l_width + 4) * (l_height + 4)*3);
-  		cudaMalloc(&saida, l_width * l_height* 3);
-	}
+    if(tipo_img == 0) {
+    	cudaMalloc(&original, (l_width + 4) * (l_height + 4));	
+   	cudaMalloc(&saida, l_width * l_height);
+    } else if (tipo_img == 1) {
+	cudaMalloc(&original, (l_width + 4) * (l_height + 4)*3);
+  	cudaMalloc(&saida, l_width * l_height* 3);
+    }
+    
     //alloca a matriz de saida que nao tem borda
     out = Mat::zeros(in.size(), in.type());
     //inicializa o tipo Mat que vai receber a matriz de saida
@@ -115,26 +116,27 @@ int main(int argc, char *argv[]) {
     struct timeval inicio, fim;
     gettimeofday(&inicio,0);
     if(tipo_img == 0) {
-   		 //copia a imagem original de entrada para a gpu
-   		 cudaMemcpy(original, in.data,(l_width + 4) * (l_height + 4), cudaMemcpyHostToDevice);
-	}
-	else if(tipo_img == 1) {
-	   	 //copia a imagem original de entrada para a gpu
-   		 cudaMemcpy(original, in.data,(l_width + 4) * (l_height + 4)*3, cudaMemcpyHostToDevice);	
-	}
-    //chama a função que passa o filtro
-	if(tipo_img == 0){ 
-    	smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width, 0, 1);
-	    cudaMemcpy(out.data, saida, l_width*l_height,cudaMemcpyDeviceToHost);
+        //copia a imagem original de entrada para a gpu
+   	cudaMemcpy(original, in.data,(l_width + 4) * (l_height + 4), cudaMemcpyHostToDevice);
     } else if(tipo_img == 1) {
-		smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width, 0, 3);
-		smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width, 1, 3);
-		smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width,2, 3);
-   		cudaMemcpy(out.data, saida, l_width*l_height*3,cudaMemcpyDeviceToHost);
-	}
-    //copia a matriz que ja recebeu e que esta na gpu de volta pra cpu
+    	//copia a imagem original de entrada para a gpu
+        cudaMemcpy(original, in.data,(l_width + 4) * (l_height + 4)*3, cudaMemcpyHostToDevice);	
+    }
+    //chama a função que passa o filtro
+    if(tipo_img == 0){ 
+    	//passa o filtro
+    	smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width, 0, 1);
+    	//copia a matriz que ja recebeu e que esta na gpu de volta pra cpu
+	cudaMemcpy(out.data, saida, l_width*l_height,cudaMemcpyDeviceToHost);
+    } else if(tipo_img == 1) {
+    	//passa o filtro
+	smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width, 0, 3);
+	smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width, 1, 3);
+	smooth<<<numBlocks,nthreads>>>(original, saida, l_height, l_width,2, 3);
+	//copia a matriz que ja recebeu e que esta na gpu de volta pra cpu
+   	cudaMemcpy(out.data, saida, l_width*l_height*3,cudaMemcpyDeviceToHost);
+    }
     
-
     //pega o tempo de fim, faz a diferença e imprime na tela
     gettimeofday(&fim,0);
     float speedup = (fim.tv_sec + fim.tv_usec/1000000.0) - (inicio.tv_sec + inicio.tv_usec/1000000.0);
